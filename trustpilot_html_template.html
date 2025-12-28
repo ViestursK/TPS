@@ -89,7 +89,7 @@
       .header-row {
         display: flex;
         gap: 20px;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
       }
@@ -767,9 +767,10 @@
         };
       }
 
-      // ANALYTICS FUNCTIONS
       function analyzeReviews(reviews) {
         const weekRange = getWeekRange();
+
+        // Current week - NEW reviews (by published date)
         const currentWeekReviews = reviews.filter((r) => {
           const date = new Date(r.dates.publishedDate);
           return (
@@ -777,31 +778,47 @@
           );
         });
 
-        // Count updated reviews this week
+        // Current week - UPDATED reviews
         const updatedThisWeek = reviews.filter((r) => {
           if (!r.dates.updatedDate) return false;
           const updateDate = new Date(r.dates.updatedDate);
+          // Make sure it's not also counted as "new" this week
+          const publishDate = new Date(r.dates.publishedDate);
+          const wasNewThisWeek =
+            publishDate >= new Date(weekRange.start) &&
+            publishDate <= new Date(weekRange.end);
           return (
             updateDate >= new Date(weekRange.start) &&
-            updateDate <= new Date(weekRange.end)
+            updateDate <= new Date(weekRange.end) &&
+            !wasNewThisWeek // Don't double-count
           );
         });
 
-        // Combine new + updated for total activity (unique reviews only)
-        const allActivityIds = new Set([
-          ...currentWeekReviews.map((r) => r.id),
-          ...updatedThisWeek.map((r) => r.id),
-        ]);
-        const totalActivityCount = allActivityIds.size;
-
+        // PREVIOUS WEEK
         const prevWeekStart = new Date(weekRange.start);
         prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
         const prevWeekReviews = reviews.filter((r) => {
           const date = new Date(r.dates.publishedDate);
           return date >= prevWeekStart && date < new Date(weekRange.start);
         });
 
-        // Sentiment analysis
+        // Previous week - UPDATED reviews
+        const prevUpdatedReviews = reviews.filter((r) => {
+          if (!r.dates.updatedDate) return false;
+          const updateDate = new Date(r.dates.updatedDate);
+          const publishDate = new Date(r.dates.publishedDate);
+          const wasNewPrevWeek =
+            publishDate >= prevWeekStart &&
+            publishDate < new Date(weekRange.start);
+          return (
+            updateDate >= prevWeekStart &&
+            updateDate < new Date(weekRange.start) &&
+            !wasNewPrevWeek
+          );
+        });
+
+        // Sentiment analysis (current week new reviews only)
         const sentiment = { positive: 0, neutral: 0, negative: 0 };
         currentWeekReviews.forEach((r) => {
           if (r.rating >= 4) sentiment.positive++;
@@ -862,7 +879,6 @@
           current: {
             count: currentWeekReviews.length,
             updatedCount: updatedThisWeek.length,
-            totalActivity: totalActivityCount,
             avgRating: currentAvgRating,
             sentiment,
             languages,
@@ -874,12 +890,12 @@
           },
           previous: {
             count: prevWeekReviews.length,
+            updatedCount: prevUpdatedReviews.length,
             avgRating: prevAvgRating,
           },
           weekRange,
         };
       }
-
       // Analyze top mentions from backend data
       function analyzeTopMentions(reviews, topMentions = []) {
         if (!topMentions || topMentions.length === 0) {
@@ -956,135 +972,165 @@
         return { positive, negative, neutral };
       }
 
-      // RENDER FUNCTIONS
+      // SIMPLIFIED renderHeader() FUNCTION
+      // Shows "New Reviews" instead of "Total Activity"
+      // Replace the entire function with this:
+
       function renderHeader(data, analytics) {
         const company = data.company;
         const weekRange = analytics.weekRange;
         const curr = analytics.current;
         const prev = analytics.previous;
-        const activityChange = curr.totalActivity - prev.count;
-        const activityChangePct =
+
+        // Compare new reviews to new reviews
+        const reviewChange = curr.count - prev.count;
+        const reviewChangePct =
           prev.count > 0
-            ? Math.abs(
-                ((curr.totalActivity - prev.count) / prev.count) * 100
-              ).toFixed(1)
+            ? (((curr.count - prev.count) / prev.count) * 100).toFixed(1)
             : "0";
 
         return `
-        <div class="header">
-          <div class="header-row">
-            <div class="brand">
-              <div class="logo">
-                <img src="${company.logo_url}" alt="${company.brand_name} logo">
-              </div>
-              <div class="brand-info">
-                <h1>${company.brand_name} — Weekly Trustpilot Report</h1>
-                <div class="meta">
-                  <span>${Icons.calendar}<strong>Period:</strong> ${formatDate(
+  <div class="header">
+    <div class="header-row">
+      <div class="brand">
+        <div class="logo">
+          <img src="${company.logo_url}" alt="${company.brand_name} logo">
+        </div>
+        <div class="brand-info">
+          <h1>${company.brand_name} — Weekly Trustpilot Report</h1>
+          <div class="meta">
+            <span>${Icons.calendar}<strong>Period:</strong> ${formatDate(
           weekRange.start
         )} → ${formatDate(weekRange.end)}</span>
-                  <span>${Icons.clock}<strong>Generated:</strong> ${formatDate(
+            <span>${Icons.clock}<strong>Generated:</strong> ${formatDate(
           new Date().toISOString()
         )}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="header-stats">
-              <div class="stat-pill">
-                <div class="label">Trust Score</div>
-                <div class="value">${company.trust_score}/5</div>
-                <div class="sub">Overall rating</div>
-              </div>
-              <div class="stat-pill">
-                <div class="label">Total Reviews</div>
-                <div class="value">${company.total_reviews.toLocaleString()}</div>
-                <div class="sub">All-time</div>
-              </div>
-              <div class="stat-pill highlight">
-                <div class="label">This Week</div>
-                <div class="value">${curr.totalActivity}</div>
-                <div class="sub" style="color:${
-                  activityChange >= 0 ? "var(--accent)" : "var(--danger)"
-                }">
-                  ${
-                    activityChange >= 0 ? Icons.trendingUp : Icons.trendingDown
-                  } 
-                  ${activityChangePct}% vs last week
-                </div>
-              </div>
-            </div>
           </div>
         </div>
-      `;
+      </div>
+      
+      <div class="header-stats">
+        <div class="stat-pill">
+          <div class="label">Trust Score</div>
+          <div class="value">${company.trust_score}/5</div>
+          <div class="sub">Overall rating</div>
+        </div>
+        <div class="stat-pill">
+          <div class="label">Total Reviews</div>
+          <div class="value">${company.total_reviews.toLocaleString()}</div>
+          <div class="sub">All-time</div>
+        </div>
+        <div class="stat-pill highlight">
+          <div class="label">New Reviews</div>
+          <div class="value">${curr.count}</div>
+          <div class="sub" style="color:${
+            reviewChange >= 0 ? "var(--accent)" : "var(--danger)"
+          }">
+            ${reviewChange >= 0 ? Icons.trendingUp : Icons.trendingDown} 
+            ${reviewChange >= 0 ? "+" : ""}${reviewChangePct}% vs last week
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+`;
       }
+
+      // SIMPLIFIED renderHighlights() FUNCTION
+      // Now shows WoW comparison for BOTH new and updated reviews
+      // Replace the entire function with this:
 
       function renderHighlights(analytics) {
         const curr = analytics.current;
         const prev = analytics.previous;
+
         const reviewChange = curr.count - prev.count;
         const reviewChangePct =
           prev.count > 0 ? ((reviewChange / prev.count) * 100).toFixed(1) : 0;
+
+        const updatedChange = curr.updatedCount - prev.updatedCount;
+        const updatedChangePct =
+          prev.updatedCount > 0
+            ? ((updatedChange / prev.updatedCount) * 100).toFixed(1)
+            : 0;
+
         const ratingChange = curr.avgRating - prev.avgRating;
 
         return `
-        <div class="highlights">
-          <div class="highlights-title">
-            <svg class="icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            Weekly Highlights
-          </div>
-          <div class="highlights-grid">
-            <div>
-              ${Icons.edit}
-              <span><strong>${curr.count} new reviews</strong> this week 
-                <span style="color:${
-                  reviewChange >= 0 ? "var(--accent)" : "var(--danger)"
-                }">
-                  ${reviewChange >= 0 ? "↑" : "↓"} ${Math.abs(reviewChangePct)}%
-                </span>
-              </span>
-            </div>
-            <div>
-              ${Icons.refresh}
-              <span><strong>${
-                curr.updatedCount
-              } reviews updated</strong> this week
-               
-              </span>
-            </div>
-            <div>
-              ${Icons.star}
-              <span><strong>Avg rating:</strong> ${curr.avgRating.toFixed(2)}
-                <span style="color:${
-                  ratingChange >= 0 ? "var(--accent)" : "var(--danger)"
-                }">
-                  (${ratingChange >= 0 ? "+" : ""}${ratingChange.toFixed(2)})
-                </span>
-              </span>
-            </div>
-            <div>
-              ${Icons.messageSquare}
-              <span><strong>Response rate:</strong> ${curr.responseRate.toFixed(
-                1
-              )}% — ${curr.repliedCount} replies</span>
-            </div>
-            <div>
-              ${Icons.clock}
-              <span><strong>Avg response time:</strong> ${curr.avgResponseTime.toFixed(
-                1
-              )} days</span>
-            </div>
-          </div>
-        </div>
-      `;
+  <div class="highlights">
+    <div class="highlights-title">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Weekly Highlights
+    </div>
+    <div class="highlights-grid">
+      <div>
+        ${Icons.edit}
+        <span><strong>${curr.count} new reviews</strong> this week 
+          <span style="color:${
+            reviewChange >= 0 ? "var(--accent)" : "var(--danger)"
+          }">
+            ${reviewChange >= 0 ? "↑" : "↓"} ${Math.abs(reviewChangePct)}%
+          </span>
+        </span>
+      </div>
+      <div>
+        ${Icons.refresh}
+        <span><strong>${curr.updatedCount} reviews updated</strong> this week
+          <span style="color:${
+            updatedChange >= 0 ? "var(--accent)" : "var(--danger)"
+          }">
+            ${updatedChange >= 0 ? "↑" : "↓"} ${Math.abs(updatedChangePct)}%
+          </span>
+        </span>
+      </div>
+      <div>
+        ${Icons.star}
+        <span><strong>Avg rating:</strong> ${curr.avgRating.toFixed(2)}
+          <span style="color:${
+            ratingChange >= 0 ? "var(--accent)" : "var(--danger)"
+          }">
+            (${ratingChange >= 0 ? "+" : ""}${ratingChange.toFixed(2)})
+          </span>
+        </span>
+      </div>
+      <div>
+        ${Icons.messageSquare}
+        <span><strong>Response rate:</strong> ${curr.responseRate.toFixed(
+          1
+        )}% — ${curr.repliedCount} replies</span>
+      </div>
+      <div>
+        ${Icons.clock}
+        <span><strong>Avg response time:</strong> ${curr.avgResponseTime.toFixed(
+          1
+        )} days</span>
+      </div>
+    </div>
+  </div>
+`;
       }
+
+      // SIMPLIFIED renderKPIs() FUNCTION
+      // Replaces "Total Activity" with "Updated Reviews" as separate metric
+      // Replace the entire function with this:
 
       function renderKPIs(analytics) {
         const curr = analytics.current;
         const prev = analytics.previous;
+
+        // New reviews WoW
         const reviewChange = curr.count - prev.count;
         const reviewChangePct =
           prev.count > 0 ? ((reviewChange / prev.count) * 100).toFixed(1) : 0;
+
+        // Updated reviews WoW
+        const updatedChange = curr.updatedCount - prev.updatedCount;
+        const updatedChangePct =
+          prev.updatedCount > 0
+            ? ((updatedChange / prev.updatedCount) * 100).toFixed(1)
+            : 0;
+
+        // Avg rating WoW
         const ratingChange = curr.avgRating - prev.avgRating;
         const ratingChangePct =
           prev.avgRating > 0
@@ -1092,51 +1138,53 @@
             : 0;
 
         return `
-        <div class="kpi">
-          <div class="label">New Reviews</div>
-          <div class="value">${curr.count}</div>
-          <div class="delta ${reviewChange >= 0 ? "positive" : "negative"}">
-            ${reviewChange >= 0 ? Icons.trendingUp : Icons.trendingDown}
-            <span>${Math.abs(reviewChange)} (${
+  <div class="kpi">
+    <div class="label">New Reviews</div>
+    <div class="value">${curr.count}</div>
+    <div class="delta ${reviewChange >= 0 ? "positive" : "negative"}">
+      ${reviewChange >= 0 ? Icons.trendingUp : Icons.trendingDown}
+      <span>${Math.abs(reviewChange)} (${
           reviewChange >= 0 ? "+" : ""
         }${reviewChangePct}%)</span>
-          </div>
-        </div>
-        <div class="kpi">
-          <div class="label">Total Activity</div>
-          <div class="value">${curr.totalActivity}</div>
-          <div class="delta neutral">
-            ${Icons.edit}
-            <span>${curr.count} new + ${curr.updatedCount} updated</span>
-          </div>
-        </div>
-        <div class="kpi">
-          <div class="label">Avg Rating</div>
-          <div class="value">${curr.avgRating.toFixed(2)}</div>
-          <div class="delta ${ratingChange >= 0 ? "positive" : "negative"}">
-            ${ratingChange >= 0 ? Icons.trendingUp : Icons.trendingDown}
-            <span>${Math.abs(ratingChange).toFixed(2)} (${
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="label">Updated Reviews</div>
+    <div class="value">${curr.updatedCount}</div>
+    <div class="delta ${updatedChange >= 0 ? "positive" : "negative"}">
+      ${updatedChange >= 0 ? Icons.trendingUp : Icons.trendingDown}
+      <span>${Math.abs(updatedChange)} (${
+          updatedChange >= 0 ? "+" : ""
+        }${updatedChangePct}%)</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="label">Avg Rating</div>
+    <div class="value">${curr.avgRating.toFixed(2)}</div>
+    <div class="delta ${ratingChange >= 0 ? "positive" : "negative"}">
+      ${ratingChange >= 0 ? Icons.trendingUp : Icons.trendingDown}
+      <span>${Math.abs(ratingChange).toFixed(2)} (${
           ratingChange >= 0 ? "+" : ""
         }${ratingChangePct}%)</span>
-          </div>
-        </div>
-        <div class="kpi">
-          <div class="label">Response Rate</div>
-          <div class="value">${curr.responseRate.toFixed(1)}%</div>
-          <div class="delta neutral">
-            ${Icons.checkCircle}
-            <span>${curr.repliedCount} of ${curr.count}</span>
-          </div>
-        </div>
-        <div class="kpi">
-          <div class="label">Avg Response Time</div>
-          <div class="value">${curr.avgResponseTime.toFixed(1)}</div>
-          <div class="delta neutral">
-            ${Icons.clock}
-            <span>days</span>
-          </div>
-        </div>
-      `;
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="label">Response Rate</div>
+    <div class="value">${curr.responseRate.toFixed(1)}%</div>
+    <div class="delta neutral">
+      ${Icons.checkCircle}
+      <span>${curr.repliedCount} of ${curr.count}</span>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="label">Avg Response Time</div>
+    <div class="value">${curr.avgResponseTime.toFixed(1)}</div>
+    <div class="delta neutral">
+      ${Icons.clock}
+      <span>days</span>
+    </div>
+  </div>
+`;
       }
 
       function renderSentimentBars(sentiment, total) {

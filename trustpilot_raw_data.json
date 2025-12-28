@@ -4,14 +4,14 @@
     "business_id": "63ba7b70a77326e55c71db1b",
     "website": "https://ketogo.app",
     "logo_url": "https://s3-eu-west-1.amazonaws.com/tpd/logos/63ba7b70a77326e55c71db1b/0x0.png",
-    "total_reviews": 2017,
+    "total_reviews": 2018,
     "trust_score": 2,
     "stars": 2,
     "is_claimed": true,
     "categories": [
-      "Weight Loss Service",
+      "Wellness Program",
       "Fitness and Nutrition Service",
-      "Wellness Program"
+      "Weight Loss Service"
     ],
     "ai_summary": {
       "summary": "Most reviewers were unhappy with their experience overall. Customers express significant dissatisfaction with payments, subscriptions, and pricing. Many consumers report unexpected charges and difficulty canceling their subscriptions, describing the cancellation process as intentionally complicated and misleading. People feel that the company makes it hard to stop payments and doesn't provide clear options for unsubscribing or getting refunds.\n\nConsumers also report that they were charged without their consent and that the company continues to take money even after the subscription has been canceled. Some reviewers mention contacting customer support but only receiving generic, automated responses. Opinions on the product and app are mixed, with no strong consensus among reviewers.",
@@ -38,9 +38,53 @@
       "Complaint",
       "Product"
     ],
-    "past_week_reviews": 38
+    "past_week_reviews": 39
   },
   "reviews": [
+    {
+      "id": "6950ed4c0984d733b98ae64d",
+      "filtered": false,
+      "isPending": false,
+      "text": "È una fregatura; dopo il pagamento ti richiedono altri pagamenti e non riesci ad avere accesso ai menu…. Il numero ID che inviano con la mail quando effettui il pagamento non serve a niente, non lo puoi inserire da nessuna parte\nSE NON CI FOSSERO I FESSI, COME FAREBBERO I FURBI A CAMPARE?\nMi è costata quasi 30 €\nBuone feste a tutti e credo che un bel libro sull’argomento costi molto meno 🤗\n",
+      "rating": 1,
+      "labels": {
+        "merged": null,
+        "verification": {
+          "isVerified": false,
+          "createdDateTime": "2025-12-28T10:41:48.000Z",
+          "reviewSourceName": "Organic",
+          "verificationSource": "invitation",
+          "verificationLevel": "not-verified",
+          "hasDachExclusion": false
+        }
+      },
+      "title": "È una fregatura",
+      "likes": 0,
+      "source": "Organic",
+      "dates": {
+        "experiencedDate": "2025-12-26T00:00:00.000Z",
+        "publishedDate": "2025-12-28T10:41:48.000Z",
+        "updatedDate": null,
+        "submittedDate": null
+      },
+      "report": null,
+      "hasUnhandledReports": false,
+      "consumer": {
+        "id": "6950ed43d7ccaab3108003a5",
+        "displayName": "Monique Conti",
+        "imageUrl": "",
+        "numberOfReviews": 1,
+        "countryCode": "CH",
+        "hasImage": false,
+        "isVerified": false
+      },
+      "reply": null,
+      "consumersReviewCountOnSameDomain": 1,
+      "consumersReviewCountOnSameLocation": null,
+      "productReviews": [],
+      "language": "it",
+      "location": null
+    },
     {
       "id": "69508752d38452ac0c33884c",
       "filtered": false,
@@ -6864,56 +6908,8 @@
       "productReviews": [],
       "language": "pl",
       "location": null
-    },
-    {
-      "id": "69296695cc4b2cea219e722e",
-      "filtered": false,
-      "isPending": false,
-      "text": "They continued to take money from my account after I emailed them and cancelled my subscription… 1 star is to many. ",
-      "rating": 1,
-      "labels": {
-        "merged": null,
-        "verification": {
-          "isVerified": false,
-          "createdDateTime": "2025-11-28T11:08:37.000Z",
-          "reviewSourceName": "Organic",
-          "verificationSource": "invitation",
-          "verificationLevel": "not-verified",
-          "hasDachExclusion": false
-        }
-      },
-      "title": "THIEVES",
-      "likes": 0,
-      "source": "Organic",
-      "dates": {
-        "experiencedDate": "2025-11-28T00:00:00.000Z",
-        "publishedDate": "2025-11-28T11:08:37.000Z",
-        "updatedDate": null,
-        "submittedDate": null
-      },
-      "report": null,
-      "hasUnhandledReports": false,
-      "consumer": {
-        "id": "6929668ad7ccaa88c4533714",
-        "displayName": "Peta",
-        "imageUrl": "",
-        "numberOfReviews": 1,
-        "countryCode": "AU",
-        "hasImage": false,
-        "isVerified": false
-      },
-      "reply": {
-        "message": "Hello,\n\nThank you for letting us know what happened. That’s definitely something we want to review directly. Payments can only continue if a subscription hasn’t been fully cancelled, so we’d like to check your account to understand the timeline and see what went wrong with your cancellation request.\n\nPlease reply to the Trustpilot information request or contact us at feedback@ketogo.app, and once we have your details we’ll look into this as soon as possible.\n\n— KetoGo Team",
-        "publishedDate": "2025-12-02T08:31:45.000Z",
-        "updatedDate": null
-      },
-      "consumersReviewCountOnSameDomain": 1,
-      "consumersReviewCountOnSameLocation": null,
-      "productReviews": [],
-      "language": "en",
-      "location": null
     }
   ],
-  "extraction_date": "2025-12-28T11:56:12.681171",
+  "extraction_date": "2025-12-28T13:17:36.062319",
   "total_reviews_extracted": 145
 }
