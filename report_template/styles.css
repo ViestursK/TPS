@@ -1,0 +1,333 @@
+/* ===============================
+   DESIGN SYSTEM — EXEC REPORT
+   =============================== */
+
+:root {
+  --bg: #f3f5f7;
+  --page: #ffffff;
+
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+
+  --border: #e5e7eb;
+  --border-soft: #eef2f7;
+
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+
+  --accent: #00b67a;
+  --danger: #dc2626;
+  --warning: #f59e0b;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.08);
+
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ===============================
+   RESET
+   =============================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===============================
+   PAGE / A4
+   =============================== */
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 24px;
+}
+
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: var(--page);
+  padding: 20mm;
+  box-shadow: var(--shadow-md);
+}
+
+.wrap {
+  max-width: 100%;
+}
+
+/* ===============================
+   ICONS
+   =============================== */
+
+.icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* ===============================
+   HEADER
+   =============================== */
+
+.header {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 18px;
+  background: var(--surface);
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.logo {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 8px;
+}
+
+.brand-info h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 16px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 12px;
+}
+
+/* ===============================
+   STAT PILLS
+   =============================== */
+
+.stat-pill {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  background: var(--surface-muted);
+  min-width: 140px;
+}
+
+.stat-pill .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  margin-bottom: 4px;
+}
+
+.stat-pill .value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.stat-pill.highlight {
+  border-color: rgba(0, 182, 122, 0.4);
+  background: rgba(0, 182, 122, 0.06);
+}
+
+/* ===============================
+   PANELS
+   =============================== */
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 16px;
+  background: var(--surface);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===============================
+   KPIS
+   =============================== */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.kpi {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  background: var(--surface-muted);
+}
+
+.kpi .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  margin-bottom: 8px;
+}
+
+.kpi .value {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.positive {
+  color: var(--accent);
+}
+.negative {
+  color: var(--danger);
+}
+.neutral {
+  color: var(--text-muted);
+}
+
+/* ===============================
+   CHARTS
+   =============================== */
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.chart-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  background: var(--surface-muted);
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.chart-canvas {
+  height: 200px;
+}
+
+/* ===============================
+   TABLES
+   =============================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  background: var(--surface-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  padding: 10px;
+}
+
+tbody td {
+  padding: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* ===============================
+   SUMMARY
+   =============================== */
+
+.summary-box {
+  background: var(--surface-muted);
+  border-left: 4px solid var(--accent);
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+/* ===============================
+   LOADING
+   =============================== */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===============================
+   PRINT / PDF
+   =============================== */
+
+@media print {
+  body {
+    background: none;
+    padding: 0;
+  }
+
+  .page {
+    box-shadow: none;
+    padding: 15mm;
+    page-break-after: always;
+  }
+
+  .panel,
+  .chart-card {
+    page-break-inside: avoid;
+  }
+}
