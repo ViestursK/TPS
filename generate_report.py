@@ -30,11 +30,11 @@ def generate_html_report(json_data_path, output_path="trustpilot_report.html"):
         sys.exit(1)
     
     # Read the HTML template
-    template_path = Path(__file__).parent / "trustpilot_report.html"
+    template_path = Path(__file__).parent / "trustpilot_html_template.html"
     
     if not template_path.exists():
         print(f"[!] Error: HTML template not found: {template_path}")
-        print("    Make sure 'trustpilot_report_v2.html' is in the same directory")
+        print("    Make sure 'trustpilot_report_template.html' is in the same directory")
         sys.exit(1)
     
     with open(template_path, 'r', encoding='utf-8') as f:

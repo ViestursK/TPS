@@ -10,7 +10,7 @@ from parsel import Selector
 
 # ===== EASY CONFIGURATION =====
 # Change the brand here - just the domain name (no need to modify anything else!)
-BRAND_DOMAIN = "certifiedfasting.com"  # Examples: "best.me", "ketogo.app", "certifiedfasting.com", etc.
+BRAND_DOMAIN = "ketogo.app"  # Examples: "best.me", "ketogo.app", "certifiedfasting.com", etc. happymammoth.com
 
 # Query parameters for filtering reviews (modify if needed)
 QUERY_PARAMS = "date=last30days&languages=all"
