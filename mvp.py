@@ -30,7 +30,7 @@ else:
     MAX_PAGES = int(MAX_PAGES_STR)
     UNLIMITED_MODE = False
 
-QUERY_PARAMS = "date=last30days&languages=all"
+QUERY_PARAMS = "languages=all"
 
 # URLs
 BASE_URL_CLEAN = f"https://www.trustpilot.com/review/{BRAND_DOMAIN}"
@@ -64,7 +64,7 @@ NEEDS_JWT = UNLIMITED_MODE or (MAX_PAGES and MAX_PAGES > 10)
 HEADERS, HAS_JWT = get_headers(use_jwt=NEEDS_JWT)
 
 # Top Mentions Mapping
-with open("data/tp_topics.json", "r", encoding="utf-8") as f:
+with open("tp_topics.json", "r", encoding="utf-8") as f:
     ALL_TOPICS = json.load(f)
 
 
@@ -274,7 +274,7 @@ def scrape_trustpilot(max_pages=None):
                 break
             
             page += 1
-            time.sleep(2)  # Be polite
+            time.sleep(0.5)  # Be polite
     
     # Calculate stats
     past_week_count = count_past_week_reviews(all_reviews)
