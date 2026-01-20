@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 """
-Generate weekly snapshots from review data
-Can create historical snapshots or just current week
-Uses NLP for intelligent theme extraction
+Generate weekly snapshots from review data - OPTIMIZED VERSION
+Uses batch processing and incremental calculations to avoid memory issues
 """
 
+import os
 from datetime import datetime, timedelta
 from database import get_db_connection, safe_get
 from psycopg2.extras import RealDictCursor
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Load sentiment configuration from environment
+POSITIVE_RATING_MIN = int(os.getenv('POSITIVE_RATING_MIN', '4'))
+NEGATIVE_RATING_MAX = int(os.getenv('NEGATIVE_RATING_MAX', '2'))
+NEUTRAL_RATING = int(os.getenv('NEUTRAL_RATING', '3'))
+NLP_MAX_THEMES = int(os.getenv('NLP_MAX_THEMES', '10'))
 
 # Import NLP manager for theme extraction
 try:
@@ -21,11 +30,9 @@ except ImportError:
 
 def get_week_boundaries(date):
     """Get Monday (start) and Sunday (end) for the week containing date"""
-    # Ensure we have a date object
     if isinstance(date, datetime):
         date = date.date()
     
-    # Find Monday of the week
     days_since_monday = date.weekday()
     week_start = date - timedelta(days=days_since_monday)
     week_end = week_start + timedelta(days=6)
@@ -47,22 +54,57 @@ def get_reviews_in_date_range(brand_id, start_date, end_date):
             return [dict(row) for row in cur.fetchall()]
 
 
-def get_reviews_up_to_date(brand_id, end_date):
-    """Get all reviews up to and including end_date"""
+def calculate_cumulative_stats(brand_id, up_to_date):
+    """
+    Calculate cumulative stats efficiently using SQL aggregation
+    Returns: avg_rating, response_rate, avg_response_time
+    """
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Get rating stats
             cur.execute("""
-                SELECT * FROM reviews
+                SELECT 
+                    AVG(rating) as avg_rating,
+                    COUNT(*) as total_reviews
+                FROM reviews
                 WHERE brand_id = %s
                 AND published_date <= %s + INTERVAL '1 day'
                 AND is_flagged = FALSE
-                ORDER BY published_date
-            """, (brand_id, end_date))
-            return [dict(row) for row in cur.fetchall()]
+                AND rating BETWEEN 1 AND 5
+            """, (brand_id, up_to_date))
+            
+            rating_stats = cur.fetchone()
+            avg_rating = float(rating_stats['avg_rating']) if rating_stats['avg_rating'] else 0
+            total_reviews = rating_stats['total_reviews']
+            
+            # Get response stats
+            cur.execute("""
+                SELECT 
+                    COUNT(*) FILTER (WHERE has_reply = TRUE) as replies,
+                    COUNT(*) as total,
+                    AVG(
+                        EXTRACT(EPOCH FROM (reply_date - published_date)) / 86400
+                    ) FILTER (WHERE has_reply = TRUE AND reply_date > published_date) as avg_days
+                FROM reviews
+                WHERE brand_id = %s
+                AND published_date <= %s + INTERVAL '1 day'
+                AND is_flagged = FALSE
+            """, (brand_id, up_to_date))
+            
+            response_stats = cur.fetchone()
+            response_rate = (response_stats['replies'] / response_stats['total'] * 100) if response_stats['total'] > 0 else 0
+            avg_response_time = float(response_stats['avg_days']) if response_stats['avg_days'] else 0
+            
+            return {
+                'avg_rating': round(avg_rating, 2),
+                'total_reviews': total_reviews,
+                'response_rate': round(response_rate, 2),
+                'avg_response_time_days': round(avg_response_time, 2)
+            }
 
 
 def calculate_sentiment(reviews):
-    """Calculate sentiment breakdown"""
+    """Calculate sentiment breakdown using env-configured thresholds"""
     sentiment = {'positive': 0, 'neutral': 0, 'negative': 0}
     rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
     
@@ -71,9 +113,9 @@ def calculate_sentiment(reviews):
         if rating and 1 <= rating <= 5:
             rating_counts[rating] += 1
             
-            if rating >= 4:
+            if rating >= POSITIVE_RATING_MIN:
                 sentiment['positive'] += 1
-            elif rating == 3:
+            elif rating == NEUTRAL_RATING:
                 sentiment['neutral'] += 1
             else:
                 sentiment['negative'] += 1
@@ -99,36 +141,6 @@ def get_source_distribution(reviews):
     return sources
 
 
-def calculate_response_metrics(reviews):
-    """Calculate response rate and avg response time"""
-    reviews_with_reply = [r for r in reviews if r.get('has_reply')]
-    
-    if not reviews:
-        return {'response_rate': 0, 'avg_response_time_days': 0}
-    
-    response_rate = (len(reviews_with_reply) / len(reviews)) * 100
-    
-    if not reviews_with_reply:
-        return {'response_rate': response_rate, 'avg_response_time_days': 0}
-    
-    # Calculate avg response time
-    total_days = 0
-    count = 0
-    for r in reviews_with_reply:
-        if r.get('published_date') and r.get('reply_date'):
-            diff_days = (r['reply_date'] - r['published_date']).days
-            if diff_days >= 0:  # Ensure reply is after review
-                total_days += diff_days
-                count += 1
-    
-    avg_response_time = total_days / count if count > 0 else 0
-    
-    return {
-        'response_rate': round(response_rate, 2),
-        'avg_response_time_days': round(avg_response_time, 2)
-    }
-
-
 def extract_themes_from_reviews(reviews, rating_filter):
     """
     Extract common themes from reviews based on rating
@@ -136,29 +148,25 @@ def extract_themes_from_reviews(reviews, rating_filter):
     """
     
     if NLP_AVAILABLE:
-        # Use NLP for intelligent theme extraction
         try:
-            return nlp_manager.extract_themes(reviews, rating_filter, max_themes=10)
+            return nlp_manager.extract_themes(reviews, rating_filter, max_themes=NLP_MAX_THEMES)
         except Exception as e:
             print(f"  [WARNING] NLP extraction failed: {e}, falling back to basic")
     
-    # Fallback: Basic word frequency (original method)
+    # Fallback: Basic word frequency
     from collections import Counter
     import re
     
     filtered_reviews = [r for r in reviews if r.get('rating') in rating_filter]
     
-    # Combine all text
     all_text = ' '.join([
         (r.get('title', '') + ' ' + r.get('text', ''))
         for r in filtered_reviews
         if r.get('title') or r.get('text')
     ]).lower()
     
-    # Simple word extraction
     words = re.findall(r'\b[a-z]{4,}\b', all_text)
     
-    # Common stop words to ignore (English only in fallback)
     stop_words = {
         'that', 'this', 'with', 'have', 'from', 'they', 'been', 'were',
         'their', 'what', 'about', 'which', 'when', 'there', 'would',
@@ -166,57 +174,32 @@ def extract_themes_from_reviews(reviews, rating_filter):
     }
     
     words = [w for w in words if w not in stop_words]
-    
-    # Get top 10 most common
     word_freq = Counter(words)
-    return [word for word, count in word_freq.most_common(10)]
+    return [word for word, count in word_freq.most_common(NLP_MAX_THEMES)]
 
 
-def get_top_mentions(brand_id):
-    """Get top mentions from brand metadata"""
-    with get_db_connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT trustpilot_business_id FROM brands WHERE id = %s
-            """, (brand_id,))
-            result = cur.fetchone()
-            
-            if not result:
-                return []
-            
-            # In a real implementation, you'd fetch this from Trustpilot API
-            # For now, return empty - this would be populated during scraping
-            return []
-
-
-def create_weekly_snapshot(brand_id, week_start, week_end, prev_week_snapshot=None):
-    """Create snapshot for a specific week"""
+def create_weekly_snapshot(brand_id, week_start, week_end, prev_week_snapshot=None, cumulative_stats=None):
+    """Create snapshot for a specific week - OPTIMIZED"""
     
-    print(f"  Creating snapshot for {week_start} to {week_end}")
+    print(f"  Creating snapshot for {week_start} to {week_end}", end=" ")
     
-    # Get reviews for this week
+    # Get reviews for this week only (small query)
     weekly_reviews = get_reviews_in_date_range(brand_id, week_start, week_end)
     
-    # Get all reviews up to end of this week (for cumulative stats)
-    all_reviews_to_date = get_reviews_up_to_date(brand_id, week_end)
+    # Use pre-calculated cumulative stats if provided
+    if cumulative_stats is None:
+        cumulative_stats = calculate_cumulative_stats(brand_id, week_end)
     
-    # Calculate metrics
-    # Sentiment for THIS WEEK only
+    # Calculate sentiment for THIS WEEK only
     sentiment, rating_counts = calculate_sentiment(weekly_reviews)
     
-    # But avg rating and response metrics are cumulative (all reviews to date)
-    all_sentiment, all_rating_counts = calculate_sentiment(all_reviews_to_date)
-    avg_rating = sum(r * c for r, c in all_rating_counts.items()) / sum(all_rating_counts.values()) if sum(all_rating_counts.values()) > 0 else 0
-    
-    response_metrics = calculate_response_metrics(all_reviews_to_date)
-    
-    # Extract themes
-    positive_themes = extract_themes_from_reviews(weekly_reviews, [4, 5])
-    negative_themes = extract_themes_from_reviews(weekly_reviews, [1, 2])
+    # Extract themes (only from this week's reviews)
+    positive_themes = extract_themes_from_reviews(weekly_reviews, [POSITIVE_RATING_MIN, 5])
+    negative_themes = extract_themes_from_reviews(weekly_reviews, [1, NEGATIVE_RATING_MAX])
     
     # Previous week stats for comparison
     prev_week_review_count = prev_week_snapshot['new_reviews_this_week'] if prev_week_snapshot else 0
-    prev_week_avg_rating = prev_week_snapshot['avg_rating'] if prev_week_snapshot else avg_rating
+    prev_week_avg_rating = prev_week_snapshot['avg_rating'] if prev_week_snapshot else cumulative_stats['avg_rating']
     
     # Calculate ISO week (YYYY-W##)
     iso_year, iso_week, _ = week_start.isocalendar()
@@ -230,34 +213,34 @@ def create_weekly_snapshot(brand_id, week_start, week_end, prev_week_snapshot=No
         'iso_week': iso_week_str,
         
         # Review Volume
-        'total_reviews_to_date': len(all_reviews_to_date),
+        'total_reviews_to_date': cumulative_stats['total_reviews'],
         'new_reviews_this_week': len(weekly_reviews),
         'prev_week_review_count': prev_week_review_count,
         
-        # Rating Performance
-        'avg_rating': round(avg_rating, 2),
+        # Rating Performance (cumulative)
+        'avg_rating': cumulative_stats['avg_rating'],
         'prev_week_avg_rating': round(prev_week_avg_rating, 2),
         
-        # Sentiment
+        # Sentiment (this week only)
         'positive_count': sentiment['positive'],
         'neutral_count': sentiment['neutral'],
         'negative_count': sentiment['negative'],
         
-        # Response Performance
-        'response_rate': response_metrics['response_rate'],
-        'avg_response_time_days': response_metrics['avg_response_time_days'],
+        # Response Performance (cumulative)
+        'response_rate': cumulative_stats['response_rate'],
+        'avg_response_time_days': cumulative_stats['avg_response_time_days'],
         
-        # Content Analysis
+        # Content Analysis (this week only)
         'language_distribution': json.dumps(get_language_distribution(weekly_reviews)),
         'source_distribution': json.dumps(get_source_distribution(weekly_reviews)),
-        'top_mentions': json.dumps(get_top_mentions(brand_id)),
+        'top_mentions': json.dumps([]),  # Would be populated from brand data
         'positive_themes': json.dumps(positive_themes),
         'negative_themes': json.dumps(negative_themes),
         
         # Metadata
         'sentiment_breakdown': json.dumps(rating_counts),
         'weekly_review_ids': json.dumps([r['trustpilot_review_id'] for r in weekly_reviews]),
-        'ai_summary': None  # Would be populated from brand data during scraping
+        'ai_summary': None
     }
     
     # Insert snapshot
@@ -306,13 +289,14 @@ def create_weekly_snapshot(brand_id, week_start, week_end, prev_week_snapshot=No
                     weekly_review_ids = EXCLUDED.weekly_review_ids
             """, snapshot_data)
     
+    print(f"✓ ({len(weekly_reviews)} reviews)")
     return snapshot_data
 
 
 def generate_historical_snapshots(brand_id):
-    """Generate snapshots for all historical weeks that have reviews"""
+    """Generate snapshots for all historical weeks - OPTIMIZED"""
     
-    print(f"\n[Generating Historical Snapshots]")
+    print(f"\n[Generating Historical Snapshots - OPTIMIZED]")
     
     # Get date range of reviews
     with get_db_connection() as conn:
@@ -335,11 +319,21 @@ def generate_historical_snapshots(brand_id):
     
     print(f"  Review date range: {first_review_date} to {last_review_date}")
     
-    # Auto-detect and install needed NLP models
+    # Auto-detect and install needed NLP models (one-time)
     if NLP_AVAILABLE:
         print(f"\n  [Checking NLP models...]")
-        all_reviews = get_reviews_up_to_date(brand_id, last_review_date)
-        nlp_manager.ensure_models_for_reviews(all_reviews)
+        # Sample 1000 reviews for language detection
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT * FROM reviews 
+                    WHERE brand_id = %s AND is_flagged = FALSE
+                    ORDER BY RANDOM()
+                    LIMIT 1000
+                """, (brand_id,))
+                sample_reviews = [dict(row) for row in cur.fetchall()]
+        
+        nlp_manager.ensure_models_for_reviews(sample_reviews)
         print()
     
     # Get week boundaries
@@ -351,18 +345,32 @@ def generate_historical_snapshots(brand_id):
     prev_snapshot = None
     snapshot_count = 0
     
+    import time
+    start_time = time.time()
+    
     while current_start <= current_week_start:
         week_start = current_start
         week_end = current_start + timedelta(days=6)
         
-        snapshot = create_weekly_snapshot(brand_id, week_start, week_end, prev_snapshot)
+        # Calculate cumulative stats once per week
+        cumulative_stats = calculate_cumulative_stats(brand_id, week_end)
+        
+        snapshot = create_weekly_snapshot(brand_id, week_start, week_end, prev_snapshot, cumulative_stats)
         prev_snapshot = snapshot
         snapshot_count += 1
         
         current_start += timedelta(days=7)
     
-    print(f"\n  [✓] Generated {snapshot_count} weekly snapshots")
+    elapsed = time.time() - start_time
+    
+    print(f"\n  [✓] Generated {snapshot_count} weekly snapshots in {elapsed:.1f}s")
     print(f"      From {first_week_start} to {current_week_start}")
+    print(f"      Avg: {elapsed/snapshot_count:.2f}s per snapshot")
+    print(f"\n  Configuration used:")
+    print(f"      Positive: {POSITIVE_RATING_MIN}+ stars")
+    print(f"      Neutral: {NEUTRAL_RATING} stars")
+    print(f"      Negative: {NEGATIVE_RATING_MAX}- stars")
+    print(f"      Max themes: {NLP_MAX_THEMES}")
 
 
 def generate_current_week_snapshot(brand_id):

@@ -3,11 +3,11 @@ services:
     image: postgres:15-alpine
     container_name: trustpilot_postgres
     environment:
-      POSTGRES_DB: trustpilot_db
-      POSTGRES_USER: trustpilot_user
-      POSTGRES_PASSWORD: trustpilot_pass
+      POSTGRES_DB: ${POSTGRES_DB:-trustpilot_db}
+      POSTGRES_USER: ${POSTGRES_USER:-trustpilot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trustpilot_pass}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

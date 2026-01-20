@@ -22,13 +22,18 @@ load_dotenv()
 BRAND_DOMAIN = os.getenv('BRANDS', 'ketogo.app').split(',')[0].strip()
 MODE = os.getenv('MODE', 'update').lower()  # 'onboarding' or 'update'
 
+# Scraper behavior settings
+REQUEST_DELAY = float(os.getenv('SCRAPER_REQUEST_DELAY', '0.5'))
+LANGUAGES = os.getenv('SCRAPER_LANGUAGES', 'all')
+DATE_FILTER = os.getenv('SCRAPER_DATE_FILTER', 'last30days')
+
 # Query params based on mode
 if MODE == 'onboarding':
-    QUERY_PARAMS = "languages=all"
+    QUERY_PARAMS = f"languages={LANGUAGES}"
     print(f"\n[MODE] ONBOARDING - Full historical scrape")
 else:
-    QUERY_PARAMS = "date=last30days&languages=all"
-    print(f"\n[MODE] UPDATE - Last 30 days only")
+    QUERY_PARAMS = f"date={DATE_FILTER}&languages={LANGUAGES}"
+    print(f"\n[MODE] UPDATE - {DATE_FILTER}")
 
 BASE_URL_CLEAN = f"https://www.trustpilot.com/review/{BRAND_DOMAIN}"
 BASE_URL = f"{BASE_URL_CLEAN}?{QUERY_PARAMS}"
@@ -91,14 +96,19 @@ def calculate_sentiment(reviews):
     sentiment = {'positive': 0, 'neutral': 0, 'negative': 0}
     rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
     
+    # Get thresholds from env
+    positive_min = int(os.getenv('POSITIVE_RATING_MIN', '4'))
+    negative_max = int(os.getenv('NEGATIVE_RATING_MAX', '2'))
+    neutral = int(os.getenv('NEUTRAL_RATING', '3'))
+    
     for r in valid_reviews:
         rating = r.get('rating')
         
         rating_counts[rating] += 1
         
-        if rating >= 4:
+        if rating >= positive_min:
             sentiment['positive'] += 1
-        elif rating == 3:
+        elif rating == neutral:
             sentiment['neutral'] += 1
         else:
             sentiment['negative'] += 1
@@ -313,7 +323,7 @@ def scrape_trustpilot():
             break
         
         page += 1
-        time.sleep(0.5)
+        time.sleep(REQUEST_DELAY)
     
     # Step 3: Generate snapshots
     print(f"\n[4] Generating weekly snapshots...")
